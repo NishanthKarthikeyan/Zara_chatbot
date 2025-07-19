@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ZARA CHATBOT</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+    }
+
+    .chat-container {
+      width: 400px;
+      margin: 50px auto;
+      background: #2c2c2c;
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .chat-header {
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #00c3ff;
+      margin-bottom: 15px;
+    }
+
+    #chatbox {
+      height: 400px;
+      overflow-y: auto;
+      border: 1px solid #444;
+      padding: 10px;
+      background: #1f1f1f;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .message {
+      margin-bottom: 10px;
+    }
+
+    .user {
+      text-align: right;
+      color: #00c3ff;
+    }
+
+    .bot {
+      text-align: left;
+      color: #ffff66;
+    }
+
+    .input-box {
+      display: flex;
+      align-items: center;
+      position: relative;
+      gap: 5px;
+    }
+
+    .upload-btn {
+      background: #555;
+      border: none;
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #upload-options {
+      display: none;
+      position: absolute;
+      bottom: 45px;
+      left: 0;
+      background: #333;
+      border-radius: 5px;
+      padding: 5px;
+      z-index: 10;
+    }
+
+    #upload-options button {
+      display: block;
+      background: none;
+      border: none;
+      color: white;
+      padding: 5px 10px;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      outline: none;
+      border-radius: 5px;
+      background: #1f1f1f;
+      color: #fff;
+    }
+
+    button.send-btn {
+      padding: 10px;
+      border: none;
+      background: #00c3ff;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    .drag-over {
+      border: 2px dashed #00c3ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">🤖 ZARA CHATBOT</div>
+
+    <div id="chatbox"
+      ondragover="handleDragOver(event)"
+      ondragleave="handleDragLeave(event)"
+      ondrop="handleDrop(event)">
+    </div>
+
+    <div class="input-box">
+      <!-- Upload Button + Options -->
+      <div style="position: relative;">
+        <button class="upload-btn" onclick="toggleUploadOptions()">+</button>
+        <div id="upload-options">
+          <button onclick="triggerFileInput('image/*')">📷 Image</button>
+          <button onclick="triggerFileInput('video/*')">🎥 Video</button>
+          <button onclick="triggerFileInput('*/*')">📎 File</button>
+        </div>
+        <input type="file" id="fileInput" onchange="handleFiles(this.files)">
+      </div>
+
+      <!-- Text Input -->
+      <input type="text" id="userInput" placeholder="Type your message..." onkeydown="handleKeyPress(event)" />
+
+      <!-- Send and Voice Buttons -->
+      <button class="send-btn" onclick="sendMessage()">Send</button>
+      <button class="send-btn" onclick="startRecording()" title="Record Voice">🎙️</button>
+    </div>
+  </div>
+
+  <script>
+    function addMessage(message, sender) {
+      const chatbox = document.getElementById("chatbox");
+      const messageElem = document.createElement("div");
+      messageElem.classList.add("message", sender);
+      messageElem.innerHTML = message;
+      chatbox.appendChild(messageElem);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    function showTypingIndicator() {
+      const chatbox = document.getElementById("chatbox");
+      const typingElem = document.createElement("div");
+      typingElem.classList.add("message", "bot");
+      typingElem.id = "typingIndicator";
+      typingElem.innerText = "ZARA is typing...";
+      chatbox.appendChild(typingElem);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+      const typingElem = document.getElementById("typingIndicator");
+      if (typingElem) typingElem.remove();
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById("userInput");
+      const userMessage = input.value.trim();
+      if (!userMessage) return;
+
+      addMessage(userMessage, "user");
+      input.value = "";
+
+      showTypingIndicator();
+
+      try {
+        const response = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: userMessage })
+        });
+
+        const data = await response.json();
+        removeTypingIndicator();
+        addMessage(data.reply, "bot");
+      } catch (error) {
+        removeTypingIndicator();
+        addMessage("⚠️ Server error. Try again.", "bot");
+      }
+    }
+
+    function handleKeyPress(event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function handleFiles(files) {
+      for (const file of files) {
+        addMessage(`📎 Uploaded: ${file.name}`, "user");
+        // Optional: Upload to server here
+      }
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+      event.currentTarget.classList.add("drag-over");
+    }
+
+    function handleDragLeave(event) {
+      event.currentTarget.classList.remove("drag-over");
+    }
+
+    function handleDrop(event) {
+      event.preventDefault();
+      event.currentTarget.classList.remove("drag-over");
+      const files = event.dataTransfer.files;
+      handleFiles(files);
+    }
+
+    function toggleUploadOptions() {
+      const options = document.getElementById("upload-options");
+      options.style.display = options.style.display === "none" ? "block" : "none";
+    }
+
+    function triggerFileInput(acceptType) {
+      const fileInput = document.getElementById("fileInput");
+      fileInput.accept = acceptType;
+      fileInput.click();
+      document.getElementById("upload-options").style.display = "none";
+    }
+
+    // Voice Recording with playable audio
+    let mediaRecorder;
+    let audioChunks = [];
+
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const audioURL = URL.createObjectURL(audioBlob);
+
+          const audioHTML = `<audio controls src="${audioURL}"></audio>`;
+          addMessage(audioHTML, "user");
+
+          // Optional: Upload audioBlob to server
+        };
+
+        mediaRecorder.start();
+        addMessage("🎙️ Recording... Sending in 5 seconds", "bot");
+
+        setTimeout(() => {
+          mediaRecorder.stop();
+        }, 5000);
+
+      } catch (err) {
+        alert("🎙️ Microphone access denied.");
+      }
+    }
+  </script>
+</body>
+</html>
